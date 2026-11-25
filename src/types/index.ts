@@ -4,7 +4,7 @@ export type Episode = {
   artworkUrl: string;
 };
 
-export type EpisodeSelection = {
+export type AudioSelection = {
   start: number;
   end: number;
 };

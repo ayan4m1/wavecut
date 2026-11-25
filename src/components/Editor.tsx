@@ -1,11 +1,14 @@
-import { ChangeEvent, useCallback, useEffect, useRef, useState } from 'react';
-import { Button, Col, Form } from 'react-bootstrap';
 import WaveSurfer from 'wavesurfer.js';
+import { Button, ButtonGroup, Col, Form } from 'react-bootstrap';
+import { ChangeEvent, useCallback, useEffect, useRef, useState } from 'react';
 import RegionsPlugin, { Region } from 'wavesurfer.js/dist/plugins/regions.js';
+
+import { AudioSelection } from '../types';
 
 export default function Editor() {
   const wavesurfer = useRef<WaveSurfer>(null);
   const [audioRegion, setAudioRegion] = useState<Region>();
+  const [audioSelection, setAudioSelection] = useState<AudioSelection>();
   const handleFileChange = useCallback(
     async (e: ChangeEvent<HTMLInputElement>) => {
       const { files } = e.target;
@@ -46,16 +49,24 @@ export default function Editor() {
     });
     const regions = wavesurfer.current.registerPlugin(RegionsPlugin.create());
 
-    regions.on('region-created', (region) =>
+    regions.on('region-created', (region) => {
       setAudioRegion((prev) => {
         prev?.remove();
         return region;
+      });
+      setAudioSelection({
+        start: region.start,
+        end: region.end
+      });
+    });
+    regions.on('region-updated', (region) =>
+      setAudioSelection({
+        start: region.start,
+        end: region.end
       })
     );
-    regions.on('region-updated', (region) => setAudioRegion(region));
 
     regions.enableDragSelection({
-      avoidOverlapping: true,
       color: '#00ff0099',
       minLength: 5,
       maxLength: 30
@@ -65,14 +76,17 @@ export default function Editor() {
   return (
     <Col className="wc-editor p-2" md={10} xs={8}>
       <div id="wc-editor-waveform"></div>
-      {JSON.stringify({ start: audioRegion?.start, end: audioRegion?.end })}
+      {JSON.stringify(audioSelection)}
       <Form.Group>
         <Form.Label>Pick an audio file</Form.Label>
         <Form.Control onChange={handleFileChange} type="file" />
       </Form.Group>
       {Boolean(audioRegion) && (
         <Form.Group>
-          <Button onClick={() => audioRegion?.play()}>Play</Button>
+          <ButtonGroup>
+            <Button onClick={() => audioRegion?.play(true)}>Play</Button>
+            <Button variant="success">Export</Button>
+          </ButtonGroup>
         </Form.Group>
       )}
     </Col>
