@@ -67,7 +67,7 @@ export default function Editor() {
     );
 
     regions.enableDragSelection({
-      color: '#00ff0099',
+      color: '#ff00ff99',
       minLength: 5,
       maxLength: 30
     });
