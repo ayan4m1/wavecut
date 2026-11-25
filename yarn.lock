@@ -8212,11 +8212,19 @@ __metadata:
     ts-node: "npm:^10.9.2"
     typescript: "npm:^6"
     typescript-eslint: "npm:^8.74.0"
+    wavesurfer.js: "npm:^8.1.1"
     webpack: "npm:^5.113.0"
     webpack-cli: "npm:^7.3.1"
     webpack-dev-server: "npm:^6.1.0"
   languageName: unknown
   linkType: soft
+
+"wavesurfer.js@npm:^8.1.1":
+  version: 8.1.1
+  resolution: "wavesurfer.js@npm:8.1.1"
+  checksum: 10c0/01bf8e34b29e11b9706c94cbaedb3dfcc5fed0b847e51a433cb2b7650d08b5c70c04bcb22f19284f85a8ffeb58b70b212af9db609584995cc6337fa53766aed4
+  languageName: node
+  linkType: hard
 
 "webpack-cli@npm:^7.3.1":
   version: 7.3.1

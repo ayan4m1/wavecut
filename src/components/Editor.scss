@@ -1,6 +1,13 @@
 .wc-editor {
   color: #fefefe;
-  background-color: hsl(220, 47%, 15%);
+  background: linear-gradient(
+    135deg,
+    #0a1033 0%,
+    /* deep navy */ #0f1a4d 45%,
+    /* dark blue, still dominant */ #1e1b5e 70%,
+    /* blue starting to shift */ #4a1f7a 90%,
+    /* purple */ #5b2a86 100% /* slightly lighter purple at the corner */
+  );
   border-radius: 12px;
   height: 100vh;
   border: 4px solid #2f4b83;
