@@ -1,0 +1,7 @@
+{
+  "generator-reackt": {
+    "testFramework": "",
+    "flags.addRedux": false,
+    "flags.addStorybook": false
+  }
+}

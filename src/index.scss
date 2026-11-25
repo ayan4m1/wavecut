@@ -1,0 +1,10 @@
+@import 'bootstrap/scss/bootstrap';
+
+@import 'components/Editor';
+@import 'components/SidePanel';
+
+html,
+body {
+  height: 100vh;
+  background-color: #262323;
+}
