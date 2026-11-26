@@ -8,23 +8,35 @@ import Viewer from '../components/Viewer';
 import SidePanel from '../components/SidePanel';
 import useKeyEvents from '../hooks/useKeyEvents';
 import { AudioSelection } from '../types';
+import useWebAudio from '../hooks/useWebAudio';
 
 const MAX_ZOOM = 500; // px per second
+const MIN_LENGTH = 5; // seconds
+const MAX_LENGTH = 90; // seconds
 
 export const Component = () => {
   const wavesurfer = useRef<WaveSurfer>(null);
+  const [audioFile, setAudioFile] = useState<Blob>();
   const [audioRegion, setAudioRegion] = useState<Region>();
   const [audioSelection, setAudioSelection] = useState<AudioSelection>();
   const [zoom, setZoom] = useState(0);
   const [minZoom, setMinZoom] = useState<number>();
+  const { playClip, stopClip, getAnalyser, isPlaying } = useWebAudio(
+    audioFile,
+    audioSelection
+  );
   const handleAudioUpload = useCallback(async (audioFile: Blob) => {
     wavesurfer.current?.loadBlob(audioFile);
+    setAudioFile(audioFile);
   }, []);
-  const handleExportClick = useCallback(() => {}, []);
-  const handlePlayClick = useCallback(
-    () => audioRegion?.play(true),
-    [audioRegion]
-  );
+  const handleExportClick = useCallback(() => {
+    wavesurfer.current?.stop();
+    playClip();
+  }, [playClip]);
+  const handlePlayClick = useCallback(() => {
+    stopClip();
+    audioRegion?.play(true);
+  }, [audioRegion, stopClip]);
   const handleResetClick = useCallback(() => {
     audioRegion?.remove();
     wavesurfer.current?.stop();
@@ -77,8 +89,8 @@ export const Component = () => {
 
     regions.enableDragSelection({
       color: '#ff00ff99',
-      minLength: 5,
-      maxLength: 30
+      minLength: MIN_LENGTH,
+      maxLength: MAX_LENGTH
     });
   }, [wavesurfer]);
 
@@ -88,6 +100,8 @@ export const Component = () => {
     <Row>
       <Viewer
         audioSelection={audioSelection}
+        getAnalyzer={getAnalyser}
+        isPlaying={isPlaying}
         maxZoom={MAX_ZOOM}
         minZoom={minZoom}
         onZoomChange={handleZoomChange}
