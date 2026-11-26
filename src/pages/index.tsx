@@ -1,11 +1,12 @@
-import { Card, Col, Form, Row } from 'react-bootstrap';
+import { Row } from 'react-bootstrap';
 import WaveSurfer from 'wavesurfer.js';
 import ZoomPlugin from 'wavesurfer.js/dist/plugins/zoom.js';
 import { ChangeEvent, useCallback, useEffect, useRef, useState } from 'react';
 import RegionsPlugin, { Region } from 'wavesurfer.js/dist/plugins/regions.js';
 
+import Viewer from '../components/Viewer';
 import SidePanel from '../components/SidePanel';
-import { formatSeconds } from '../utils';
+import useKeyEvents from '../hooks/useKeyEvents';
 import { AudioSelection } from '../types';
 
 const MAX_ZOOM = 500; // px per second
@@ -44,15 +45,14 @@ export const Component = () => {
     wavesurfer.current = WaveSurfer.create({
       container: '#wc-editor-waveform',
       waveColor: '#fefefe',
-      dragToSeek: false,
-      barRadius: 4
+      dragToSeek: false
     });
     const regions = wavesurfer.current.registerPlugin(RegionsPlugin.create());
     wavesurfer.current.registerPlugin(ZoomPlugin.create({ maxZoom: MAX_ZOOM }));
 
     wavesurfer.current.on('ready', (duration) => {
       // px/sec at which the whole file fits the container; anything lower looks identical
-      const fit = (wavesurfer.current?.getWidth() ?? 0) / duration;
+      const fit = Math.floor((wavesurfer.current?.getWidth() ?? 0) / duration);
       setMinZoom(fit);
       wavesurfer.current?.zoom(fit);
     });
@@ -82,83 +82,17 @@ export const Component = () => {
     });
   }, [wavesurfer]);
 
-  useEffect(() => {
-    if (!audioRegion) {
-      return;
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== ' ' && event.key !== '[' && event.key !== ']') {
-        return;
-      }
-
-      const target = event.target as HTMLElement | null;
-      if (
-        target?.closest('input, textarea, select, [contenteditable="true"]')
-      ) {
-        return;
-      }
-
-      event.preventDefault();
-
-      if (event.key === ' ') {
-        if (!event.repeat) {
-          audioRegion.play(true);
-        }
-        return;
-      }
-
-      const duration = wavesurfer.current?.getDuration() ?? 0;
-      const step = event.key === '[' ? -0.1 : 0.1;
-      const delta = Math.max(
-        -audioRegion.start,
-        Math.min(duration - audioRegion.end, step)
-      );
-
-      if (delta === 0) {
-        return;
-      }
-
-      audioRegion.setOptions({
-        start: audioRegion.start + delta,
-        end: audioRegion.end + delta
-      });
-      setAudioSelection({ start: audioRegion.start, end: audioRegion.end });
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [audioRegion]);
+  useKeyEvents(wavesurfer, audioRegion, setAudioSelection);
 
   return (
     <Row>
-      <Col className="wc-editor p-2" md={10} xs={8}>
-        <div id="wc-editor-waveform"></div>
-        {minZoom !== undefined && (
-          <Form.Range
-            className="my-2"
-            max={MAX_ZOOM}
-            min={minZoom}
-            onChange={handleZoomChange}
-            step={1}
-            value={zoom}
-          />
-        )}
-        {Boolean(audioSelection) && (
-          <Card body>
-            <Card.Title>
-              {Math.round(
-                (audioSelection?.end ?? 0) - (audioSelection?.start ?? 0)
-              )}{' '}
-              Second Clip
-            </Card.Title>
-            <Card.Text>
-              From {formatSeconds(audioSelection?.start ?? 0)} to{' '}
-              {formatSeconds(audioSelection?.end ?? 0)}
-            </Card.Text>
-          </Card>
-        )}
-      </Col>
+      <Viewer
+        audioSelection={audioSelection}
+        maxZoom={MAX_ZOOM}
+        minZoom={minZoom}
+        onZoomChange={handleZoomChange}
+        zoom={zoom}
+      />
       <SidePanel
         hasAudio={Boolean(audioRegion)}
         onAudioUpload={handleAudioUpload}

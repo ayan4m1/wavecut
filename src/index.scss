@@ -19,6 +19,10 @@ body {
   border-radius: 12px;
   height: 100vh;
   border: 4px solid #2f4b83;
+
+  &-container {
+    width: 100%;
+  }
 }
 
 .wc-side-panel {

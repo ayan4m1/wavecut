@@ -57,7 +57,7 @@ export default function SidePanel({
             <ButtonGroup>
               <Button onClick={onPlayClick}>Play</Button>
               <Button onClick={onResetClick} variant="danger">
-                Reset
+                Clear
               </Button>
               <Button onClick={onExportClick} variant="success">
                 Export
