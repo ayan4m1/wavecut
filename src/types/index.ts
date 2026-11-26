@@ -25,6 +25,12 @@ export type ExportState = {
   progress: number;
 };
 
+export enum ExportSize {
+  Square = 'square',
+  Vertical = 'vertical',
+  Horizontal = 'horizontal'
+}
+
 export interface ClipPlayerOptions {
   /** Fade-in length in seconds (default 0.4) */
   fadeIn?: number;

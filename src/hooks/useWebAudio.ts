@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  RefObject,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
 import { AudioSelection, ClipPlayerOptions } from '../types';
 
 interface AudioGraph {
@@ -13,11 +20,13 @@ type DecodeResult =
 export default function useWebAudio(
   blob: Blob | undefined,
   selection: AudioSelection | undefined,
+  canvasRef: RefObject<HTMLCanvasElement | null>,
   { fadeIn = 0.4, fadeOut = 0.4 }: ClipPlayerOptions = {}
 ) {
   const graphRef = useRef<AudioGraph | null>(null);
   const sourceRef = useRef<AudioBufferSourceNode | null>(null);
   const gainRef = useRef<GainNode | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
   const startedAtRef = useRef(0);
   const resolveRef = useRef<(() => void) | null>(null);
 
@@ -31,15 +40,36 @@ export default function useWebAudio(
     if (!graphRef.current || graphRef.current.ctx.state === 'closed') {
       const ctx = new AudioContext();
       const analyser = ctx.createAnalyser();
-      analyser.fftSize = 256; // 128 frequency bins: plenty for waveform bars
-      analyser.smoothingTimeConstant = 0.75;
-      analyser.connect(ctx.destination);
+
+      analyser.fftSize = 2048; // 1024 bins (~23 Hz each at 48 kHz): enough low-end resolution for log-spaced bars
+      analyser.smoothingTimeConstant = 0.8;
       graphRef.current = { ctx, analyser };
     }
     return graphRef.current;
   }, []);
 
   const getAnalyser = useCallback(() => getGraph().analyser, [getGraph]);
+
+  const getRecorder = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      throw new Error('Visualizer canvas not mounted');
+    }
+
+    // Must share the graph's AudioContext; nodes can't connect across contexts.
+    const { ctx } = getGraph();
+    const stream = new MediaStream();
+    const audioDest = ctx.createMediaStreamDestination();
+
+    gainRef.current?.connect(audioDest);
+    const videoStream = canvas.captureStream(30);
+
+    stream.addTrack(audioDest.stream.getAudioTracks()[0]);
+    stream.addTrack(videoStream.getVideoTracks()[0]);
+    recorderRef.current = new MediaRecorder(stream);
+
+    return recorderRef.current;
+  }, [canvasRef, getGraph]);
 
   // Tear everything down on unmount.
   useEffect(() => {
@@ -49,6 +79,7 @@ export default function useWebAudio(
       } catch {
         /* already stopped */
       }
+
       sourceRef.current = null;
       resolveRef.current?.();
       resolveRef.current = null;
@@ -61,6 +92,7 @@ export default function useWebAudio(
     if (!blob) {
       return;
     }
+
     let cancelled = false;
 
     blob
@@ -141,7 +173,9 @@ export default function useWebAudio(
   }, [getGraph]);
 
   const playClip = useCallback(async (): Promise<void> => {
-    if (!clipBuffer) return;
+    if (!clipBuffer) {
+      return;
+    }
 
     // Stop anything already playing and settle its promise.
     if (sourceRef.current) {
@@ -157,13 +191,16 @@ export default function useWebAudio(
 
     const { ctx, analyser } = getGraph();
     // Browsers start AudioContexts suspended until a user gesture.
-    if (ctx.state === 'suspended') await ctx.resume();
+    if (ctx.state === 'suspended') {
+      await ctx.resume();
+    }
 
     const source = ctx.createBufferSource();
     source.buffer = clipBuffer;
 
     const gain = ctx.createGain();
-    source.connect(gain).connect(analyser);
+    source.connect(gain).connect(ctx.destination);
+    source.connect(analyser); // pre-fade tap so the visualizer isn't flattened by fades
 
     // Schedule fades; shrink them proportionally if the clip is shorter than both together.
     const dur = clipBuffer.duration;
@@ -201,7 +238,10 @@ export default function useWebAudio(
   }, [clipBuffer, fadeIn, fadeOut, getGraph]);
 
   const getElapsed = useCallback(() => {
-    if (!sourceRef.current || !graphRef.current) return 0;
+    if (!sourceRef.current || !graphRef.current) {
+      return 0;
+    }
+
     return graphRef.current.ctx.currentTime - startedAtRef.current;
   }, []);
 
@@ -210,6 +250,7 @@ export default function useWebAudio(
     stopClip,
     getElapsed,
     getAnalyser,
+    getRecorder,
     clipBuffer,
     duration,
     isDecoding,

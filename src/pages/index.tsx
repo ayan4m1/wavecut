@@ -7,7 +7,7 @@ import RegionsPlugin, { Region } from 'wavesurfer.js/dist/plugins/regions.js';
 import Viewer from '../components/Viewer';
 import SidePanel from '../components/SidePanel';
 import useKeyEvents from '../hooks/useKeyEvents';
-import { AudioSelection } from '../types';
+import { AudioSelection, ExportSize } from '../types';
 import useWebAudio from '../hooks/useWebAudio';
 
 const MAX_ZOOM = 500; // px per second
@@ -16,14 +16,17 @@ const MAX_LENGTH = 90; // seconds
 
 export const Component = () => {
   const wavesurfer = useRef<WaveSurfer>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [audioFile, setAudioFile] = useState<Blob>();
   const [audioRegion, setAudioRegion] = useState<Region>();
   const [audioSelection, setAudioSelection] = useState<AudioSelection>();
+  const [exportSize, setExportSize] = useState<ExportSize>(ExportSize.Square);
   const [zoom, setZoom] = useState(0);
   const [minZoom, setMinZoom] = useState<number>();
   const { playClip, stopClip, getAnalyser, isPlaying } = useWebAudio(
     audioFile,
-    audioSelection
+    audioSelection,
+    canvasRef
   );
   const handleAudioUpload = useCallback(async (audioFile: Blob) => {
     wavesurfer.current?.loadBlob(audioFile);
@@ -98,13 +101,16 @@ export const Component = () => {
 
   return (
     <Row>
+      <title>Wavecut</title>
       <Viewer
         audioSelection={audioSelection}
+        exportSize={exportSize}
         getAnalyzer={getAnalyser}
         isPlaying={isPlaying}
         maxZoom={MAX_ZOOM}
         minZoom={minZoom}
         onZoomChange={handleZoomChange}
+        ref={canvasRef}
         zoom={zoom}
       />
       <SidePanel
@@ -113,6 +119,7 @@ export const Component = () => {
         onExportClick={handleExportClick}
         onPlayClick={handlePlayClick}
         onResetClick={handleResetClick}
+        onSizeChange={setExportSize}
       />
     </Row>
   );

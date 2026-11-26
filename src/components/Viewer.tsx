@@ -1,35 +1,46 @@
-import { ChangeEvent, useEffect, useRef } from 'react';
+import { ChangeEvent, RefObject, useEffect } from 'react';
 import { Card, Col, Form, Row } from 'react-bootstrap';
 
 import { formatSeconds } from '../utils';
-import { AudioSelection } from '../types';
+import { AudioSelection, ExportSize } from '../types';
 
 const BAR_COLOR = '#ff00ff';
 const BAR_GAP = 1; // px
+const BAR_COUNT = 64;
+// Log-spaced band edges; most lossy audio is low-passed around 16 kHz, so going to Nyquist leaves empty bars.
+const MIN_FREQ = 40; // Hz
+const MAX_FREQ = 16000; // Hz
+const VIDEO_SIZES = {
+  [ExportSize.Square]: [1080, 1080],
+  [ExportSize.Horizontal]: [1920, 1080],
+  [ExportSize.Vertical]: [1080, 1920]
+} as const;
 
 interface IProps {
   audioSelection?: AudioSelection;
+  exportSize: ExportSize;
   getAnalyzer: () => AnalyserNode;
   isPlaying: boolean;
   maxZoom: number;
   minZoom?: number;
+  ref: RefObject<HTMLCanvasElement | null>;
   zoom: number;
   onZoomChange: (e: ChangeEvent<HTMLInputElement>) => void;
 }
 
 export default function Viewer({
   audioSelection,
+  exportSize,
   getAnalyzer,
   isPlaying,
   maxZoom,
   minZoom,
+  ref,
   zoom,
   onZoomChange
 }: IProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
   useEffect(() => {
-    const canvas = canvasRef.current;
+    const canvas = ref.current;
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) {
       return;
@@ -38,13 +49,21 @@ export default function Viewer({
     const clear = () => ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Only touch the analyser while playing; getAnalyzer lazily creates the AudioContext.
+    // When stopped, leave the last drawn frame on the canvas.
     if (!isPlaying) {
-      clear();
       return;
     }
 
     const analyser = getAnalyzer();
-    const data = new Uint8Array(analyser.frequencyBinCount);
+    const binCount = analyser.frequencyBinCount;
+    const data = new Uint8Array(binCount);
+    const nyquist = analyser.context.sampleRate / 2;
+
+    // edges[b]..edges[b + 1] is the bin range for bar b.
+    const edges = Array.from({ length: BAR_COUNT + 1 }, (_, b) => {
+      const freq = MIN_FREQ * (MAX_FREQ / MIN_FREQ) ** (b / BAR_COUNT);
+      return Math.min(binCount - 1, Math.round((freq / nyquist) * binCount));
+    });
     let frame = 0;
 
     const draw = () => {
@@ -60,12 +79,20 @@ export default function Viewer({
       clear();
       ctx.fillStyle = BAR_COLOR;
 
-      const slot = width / data.length;
+      ctx.beginPath();
+      const slot = width / BAR_COUNT;
       const barWidth = Math.max(1, slot - BAR_GAP * dpr);
-      for (let i = 0; i < data.length; i++) {
-        const barHeight = (data[i] / 255) * height;
-        ctx.fillRect(i * slot, height - barHeight, barWidth, barHeight);
+      for (let i = 0; i < BAR_COUNT; i++) {
+        const start = edges[i];
+        const end = Math.max(start + 1, edges[i + 1]);
+        let peak = 0;
+        for (let j = start; j < end && j < binCount; j++) {
+          peak = Math.max(peak, data[j]);
+        }
+        const barHeight = (peak / 255) * height;
+        ctx.roundRect(i * slot, height - barHeight, barWidth - 2, barHeight, 4);
       }
+      ctx.fill();
 
       frame = requestAnimationFrame(draw);
     };
@@ -73,9 +100,8 @@ export default function Viewer({
 
     return () => {
       cancelAnimationFrame(frame);
-      clear();
     };
-  }, [isPlaying, getAnalyzer]);
+  }, [isPlaying, getAnalyzer, ref]);
 
   return (
     <Col className="wc-editor d-flex align-items-center" md={10} xs={8}>
@@ -108,7 +134,9 @@ export default function Viewer({
           )}
           <canvas
             className="wc-editor-visualizer w-100 my-2 p-4"
-            ref={canvasRef}
+            height={VIDEO_SIZES[exportSize][1]}
+            ref={ref}
+            width={VIDEO_SIZES[exportSize][0]}
           />
         </Row>
       </div>

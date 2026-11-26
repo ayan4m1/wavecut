@@ -1,5 +1,6 @@
-import { ChangeEvent, useCallback } from 'react';
+import { ChangeEvent, Fragment, useCallback } from 'react';
 import { Button, ButtonGroup, Col, Form } from 'react-bootstrap';
+import { ExportSize } from '../types';
 
 interface IProps {
   hasAudio: boolean;
@@ -7,6 +8,7 @@ interface IProps {
   onExportClick: () => void;
   onPlayClick: () => void;
   onResetClick: () => void;
+  onSizeChange: (size: ExportSize) => void;
 }
 
 export default function SidePanel({
@@ -14,7 +16,8 @@ export default function SidePanel({
   onAudioUpload,
   onExportClick,
   onPlayClick,
-  onResetClick
+  onResetClick,
+  onSizeChange
 }: IProps) {
   const handleFileChange = useCallback(
     async (e: ChangeEvent<HTMLInputElement>) => {
@@ -53,17 +56,33 @@ export default function SidePanel({
           />
         </Form.Group>
         {hasAudio && (
-          <Form.Group className="mt-2">
-            <ButtonGroup>
-              <Button onClick={onPlayClick}>Play</Button>
-              <Button onClick={onResetClick} variant="danger">
-                Clear
-              </Button>
-              <Button onClick={onExportClick} variant="success">
-                Export
-              </Button>
-            </ButtonGroup>
-          </Form.Group>
+          <Fragment>
+            <Form.Group>
+              <Form.Label>Video Size</Form.Label>
+              <Form.Select
+                onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+                  onSizeChange(e.target.value as ExportSize)
+                }
+              >
+                {Object.entries(ExportSize).map(([val, size]) => (
+                  <option key={val} value={val}>
+                    {size}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+            <Form.Group className="mt-2">
+              <ButtonGroup>
+                <Button onClick={onPlayClick}>Play</Button>
+                <Button onClick={onResetClick} variant="danger">
+                  Clear
+                </Button>
+                <Button onClick={onExportClick} variant="success">
+                  Export
+                </Button>
+              </ButtonGroup>
+            </Form.Group>
+          </Fragment>
         )}
       </Form>
     </Col>

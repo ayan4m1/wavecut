@@ -22,7 +22,8 @@ body {
 
   &-visualizer {
     display: block;
-    height: 120px;
+    max-height: 360px;
+    height: auto;
   }
 }
 
