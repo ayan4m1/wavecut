@@ -1,10 +1,30 @@
 @import 'bootstrap/scss/bootstrap';
 
-@import 'components/Editor';
-@import 'components/SidePanel';
-
 html,
 body {
   height: 100vh;
   background-color: #262323;
+}
+
+.wc-editor {
+  color: #fefefe;
+  background: linear-gradient(
+    135deg,
+    #0a1033 0%,
+    /* deep navy */ #0f1a4d 45%,
+    /* dark blue, still dominant */ #1e1b5e 70%,
+    /* blue starting to shift */ #4a1f7a 90%,
+    /* purple */ #5b2a86 100% /* slightly lighter purple at the corner */
+  );
+  border-radius: 12px;
+  height: 100vh;
+  border: 4px solid #2f4b83;
+}
+
+.wc-side-panel {
+  color: #fefefe;
+  background-color: #142038;
+  border-radius: 12px;
+  height: 100vh;
+  border: 4px solid #2f4b83;
 }
