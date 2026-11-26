@@ -1,14 +1,18 @@
 import type { RouteObject } from 'react-router-dom';
 
-// handle.title is what Layout renders in the nav - routes without one
-// (the index route) are reachable but not linked
-export type AppRoute = RouteObject & {
-  handle?: { title: string };
-};
+import Layout from './components/Layout';
+import ErrorBoundary from './components/ErrorBoundary';
 
-export const routes: AppRoute[] = [
+export const routes: RouteObject[] = [
   {
-    index: true,
-    lazy: () => import(`./pages/index`)
+    path: '/',
+    element: <Layout />,
+    errorElement: <ErrorBoundary />,
+    children: [
+      {
+        index: true,
+        lazy: () => import(`./pages/index`)
+      }
+    ]
   }
 ];
