@@ -12,6 +12,7 @@ import { pickMimeType } from '../utils';
 interface AudioGraph {
   ctx: AudioContext;
   analyser: AnalyserNode;
+  recordDest: MediaStreamAudioDestinationNode;
 }
 
 type DecodeResult =
@@ -44,7 +45,9 @@ export default function useWebAudio(
 
       analyser.fftSize = 2048; // 1024 bins (~23 Hz each at 48 kHz): enough low-end resolution for log-spaced bars
       analyser.smoothingTimeConstant = 0.8;
-      graphRef.current = { ctx, analyser };
+      // Long-lived recording tap; each playback's gain node connects to it.
+      const recordDest = ctx.createMediaStreamDestination();
+      graphRef.current = { ctx, analyser, recordDest };
     }
     return graphRef.current;
   }, []);
@@ -59,15 +62,14 @@ export default function useWebAudio(
       }
 
       // Must share the graph's AudioContext; nodes can't connect across contexts.
-      const { ctx } = getGraph();
+      const { recordDest } = getGraph();
       const stream = new MediaStream();
       const mimeType = pickMimeType();
-      const audioDest = ctx.createMediaStreamDestination();
-
-      gainRef.current?.connect(audioDest);
       const videoStream = canvas.captureStream(30);
 
-      stream.addTrack(audioDest.stream.getAudioTracks()[0]);
+      for (const track of recordDest.stream.getAudioTracks()) {
+        stream.addTrack(track);
+      }
       stream.addTrack(videoStream.getVideoTracks()[0]);
       recorderRef.current = new MediaRecorder(
         stream,
@@ -195,7 +197,7 @@ export default function useWebAudio(
       resolveRef.current = null;
     }
 
-    const { ctx, analyser } = getGraph();
+    const { ctx, analyser, recordDest } = getGraph();
     // Browsers start AudioContexts suspended until a user gesture.
     if (ctx.state === 'suspended') {
       await ctx.resume();
@@ -206,6 +208,7 @@ export default function useWebAudio(
 
     const gain = ctx.createGain();
     source.connect(gain).connect(ctx.destination);
+    gain.connect(recordDest); // post-fade, so the export gets the same fades as playback
     source.connect(analyser); // pre-fade tap so the visualizer isn't flattened by fades
 
     // Schedule fades; shrink them proportionally if the clip is shorter than both together.
