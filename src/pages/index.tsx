@@ -10,7 +10,7 @@ import useKeyEvents from '../hooks/useKeyEvents';
 import useWebAudio from '../hooks/useWebAudio';
 import { AudioSelection, ExportSize } from '../types';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { toBlobURL } from '@ffmpeg/util';
+import { fetchFile, toBlobURL } from '@ffmpeg/util';
 import { pickMimeType } from '../utils';
 
 const MAX_ZOOM = 500; // px per second
@@ -21,6 +21,7 @@ export const Component = () => {
   const wavesurfer = useRef<WaveSurfer>(null);
   const ffmpegRef = useRef<FFmpeg>(new FFmpeg());
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [exporting, setExporting] = useState(false);
   const [audioFile, setAudioFile] = useState<Blob>();
   const [audioRegion, setAudioRegion] = useState<Region>();
   const [audioSelection, setAudioSelection] = useState<AudioSelection>();
@@ -53,9 +54,13 @@ export const Component = () => {
     setAudioFile(audioFile);
   }, []);
   const handleExportClick = useCallback(async () => {
-    wavesurfer.current?.stop();
+    if (exporting) {
+      return;
+    }
 
-    // todo: set global disabled state flag
+    setExporting(true);
+
+    wavesurfer.current?.stop();
 
     const recorder = getRecorder();
     const mimeType = pickMimeType();
@@ -65,9 +70,36 @@ export const Component = () => {
       await loadFfmpeg();
     }
 
-    playClip();
+    recorder.addEventListener('dataavailable', async (e: BlobEvent) => {
+      if (mimeType?.includes('webm')) {
+        await ffmpegRef.current.writeFile(
+          'input.webm',
+          await fetchFile(e.data)
+        );
+        await ffmpegRef.current.exec(['-i', 'input.webm', 'output.mp4']);
+
+        const data = (await ffmpegRef.current.readFile(
+          'output.mp4'
+        )) as Uint8Array<ArrayBuffer>;
+        const blob = new Blob([data], { type: 'video/mp4' });
+        const url = URL.createObjectURL(blob);
+
+        const aTag = document.createElement('a');
+        aTag.href = url;
+        aTag.download = 'test.mp4';
+
+        document.body.appendChild(aTag);
+        aTag.click();
+        document.body.removeChild(aTag);
+
+        setTimeout(() => URL.revokeObjectURL(url), 100);
+      }
+    });
+
     recorder.start();
-  }, [playClip, getRecorder]);
+    await playClip();
+    recorder.stop();
+  }, [playClip, getRecorder, exporting]);
   const handlePlayClick = useCallback(() => {
     stopClip();
     audioRegion?.play(true);
