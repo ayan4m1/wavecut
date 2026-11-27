@@ -71,29 +71,66 @@ export const Component = () => {
     }
 
     recorder.addEventListener('dataavailable', async (e: BlobEvent) => {
+      let blob: Blob;
+
       if (mimeType?.includes('webm')) {
         await ffmpegRef.current.writeFile(
           'input.webm',
           await fetchFile(e.data)
         );
-        await ffmpegRef.current.exec(['-i', 'input.webm', 'output.mp4']);
+
+        // todo: show animated progress bar
+
+        // prettier-ignore
+        const args = [
+          '-i',
+          'input.webm',
+
+          // Video: H.264, the format every platform accepts
+          '-c:v', 'libx264',
+          '-preset', 'veryfast',
+          '-crf', '21',
+          '-profile:v', 'high',
+          '-level:v', '4.1',
+          '-pix_fmt', 'yuv420p',
+          '-r', '30', // constant 30 fps (see below)
+          '-g', '60', // a keyframe every 2 s, which helps seeking and platform processing
+
+          // Audio: AAC stereo
+          '-c:a', 'aac',
+          '-b:a', '192k',
+          '-ar', '48000',
+          '-ac', '2',
+
+          // Index at the front of the file
+          '-movflags',
+          '+faststart',
+
+          'output.mp4'
+        ];
+
+        await ffmpegRef.current.exec(args);
+
+        // todo: hide animated progress bar
 
         const data = (await ffmpegRef.current.readFile(
           'output.mp4'
         )) as Uint8Array<ArrayBuffer>;
-        const blob = new Blob([data], { type: 'video/mp4' });
-        const url = URL.createObjectURL(blob);
-
-        const aTag = document.createElement('a');
-        aTag.href = url;
-        aTag.download = 'test.mp4';
-
-        document.body.appendChild(aTag);
-        aTag.click();
-        document.body.removeChild(aTag);
-
-        setTimeout(() => URL.revokeObjectURL(url), 100);
+        blob = new Blob([data], { type: 'video/mp4' });
+      } else {
+        blob = e.data;
       }
+
+      const url = URL.createObjectURL(blob);
+      const aTag = document.createElement('a');
+      aTag.href = url;
+      aTag.download = `test.mp4`;
+
+      document.body.appendChild(aTag);
+      aTag.click();
+      document.body.removeChild(aTag);
+
+      setTimeout(() => URL.revokeObjectURL(url), 100);
     });
 
     recorder.start();
