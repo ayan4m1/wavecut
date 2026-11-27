@@ -23,6 +23,7 @@ interface IProps {
   minZoom?: number;
   ref: RefObject<HTMLCanvasElement | null>;
   zoom: number;
+  onFrame?: () => void;
   onZoomChange: (e: ChangeEvent<HTMLInputElement>) => void;
 }
 
@@ -39,6 +40,7 @@ export default function Viewer({
   minZoom,
   ref,
   zoom,
+  onFrame,
   onZoomChange
 }: IProps) {
   useEffect(() => {
@@ -69,23 +71,18 @@ export default function Viewer({
     let frame = 0;
 
     const draw = () => {
-      const dpr = window.devicePixelRatio || 1;
-      const width = Math.round(canvas.clientWidth * dpr);
-      const height = Math.round(canvas.clientHeight * dpr);
-      if (canvas.width !== width || canvas.height !== height) {
-        canvas.width = width;
-        canvas.height = height;
-      }
+      // Draw at the export resolution (set via the width/height attributes); CSS scales the display.
+      const { width, height } = canvas;
 
       analyser.getByteFrequencyData(data);
       clear();
       ctx.fillStyle = bgColor;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, width, height);
       ctx.fillStyle = fgColor;
 
       ctx.beginPath();
       const slot = width / BAR_COUNT;
-      const barWidth = Math.max(1, slot - BAR_GAP * dpr);
+      const barWidth = Math.max(1, slot - BAR_GAP);
       for (let i = 0; i < BAR_COUNT; i++) {
         const start = edges[i];
         const end = Math.max(start + 1, edges[i + 1]);
@@ -97,6 +94,7 @@ export default function Viewer({
         ctx.roundRect(i * slot, height - barHeight, barWidth - 2, barHeight, 4);
       }
       ctx.fill();
+      onFrame?.();
 
       frame = requestAnimationFrame(draw);
     };
@@ -105,7 +103,7 @@ export default function Viewer({
     return () => {
       cancelAnimationFrame(frame);
     };
-  }, [isPlaying, getAnalyzer, ref, bgColor, fgColor]);
+  }, [isPlaying, getAnalyzer, onFrame, ref, bgColor, fgColor]);
 
   return (
     <Col className="wc-editor d-flex align-items-center" md={10} xs={8}>

@@ -11,8 +11,10 @@ const VIDEO_FORMATS = [
   'video/mp4;codecs=avc1.42E01E,mp4a.40.2', // H.264 + AAC: what social platforms want
   'video/mp4;codecs=avc1,mp4a',
   'video/mp4',
-  'video/webm;codecs=vp9,opus',
+  // Cheapest realtime encoders first: H.264 is often hardware-accelerated, VP9 is slow software encoding
+  'video/webm;codecs=h264,opus',
   'video/webm;codecs=vp8,opus',
+  'video/webm;codecs=vp9,opus',
   'video/webm'
 ];
 

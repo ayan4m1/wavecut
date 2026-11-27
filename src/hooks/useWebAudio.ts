@@ -15,6 +15,14 @@ interface AudioGraph {
   recordDest: MediaStreamAudioDestinationNode;
 }
 
+const RECORD_FPS = 30;
+// Slightly under 1000 / 30 so rAF jitter on a 60 Hz display doesn't skip every other eligible tick.
+const FRAME_INTERVAL_MS = 1000 / RECORD_FPS - 2;
+
+// Firefox's CanvasCaptureMediaStream has requestFrame() on the stream itself (not in lib.dom).
+type CanvasCaptureStream = MediaStream & { requestFrame?: () => void };
+type CaptureTrack = MediaStreamTrack & { requestFrame?: () => void };
+
 type DecodeResult =
   | { blob: Blob; buffer: AudioBuffer; error: null }
   | { blob: Blob; buffer: null; error: Error };
@@ -29,6 +37,8 @@ export default function useWebAudio(
   const sourceRef = useRef<AudioBufferSourceNode | null>(null);
   const gainRef = useRef<GainNode | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
+  const captureFrameRef = useRef<(() => void) | null>(null);
+  const lastFrameAtRef = useRef(0);
   const startedAtRef = useRef(0);
   const resolveRef = useRef<(() => void) | null>(null);
 
@@ -65,12 +75,27 @@ export default function useWebAudio(
       const { recordDest } = getGraph();
       const stream = new MediaStream();
       const mimeType = pickMimeType();
-      const videoStream = canvas.captureStream(30);
+      // Frame rate 0 = manual capture; the draw loop calls requestFrame() so each frame is a fresh draw.
+      let videoStream = canvas.captureStream(0) as CanvasCaptureStream;
+      let videoTrack: CaptureTrack = videoStream.getVideoTracks()[0];
 
-      for (const track of recordDest.stream.getAudioTracks()) {
-        stream.addTrack(track);
+      // Chrome/Safari expose requestFrame() on the track, Firefox on the stream.
+      if (typeof videoTrack.requestFrame === 'function') {
+        const track = videoTrack;
+        captureFrameRef.current = () => track.requestFrame?.();
+      } else if (typeof videoStream.requestFrame === 'function') {
+        const capture = videoStream;
+        captureFrameRef.current = () => capture.requestFrame?.();
+      } else {
+        // No manual capture support: fall back to timed capture.
+        videoTrack.stop();
+        videoStream = canvas.captureStream(RECORD_FPS);
+        videoTrack = videoStream.getVideoTracks()[0];
+        captureFrameRef.current = null;
       }
-      stream.addTrack(videoStream.getVideoTracks()[0]);
+      lastFrameAtRef.current = 0;
+      stream.addTrack(recordDest.stream.getAudioTracks()[0]);
+      stream.addTrack(videoTrack);
       recorderRef.current = new MediaRecorder(
         stream,
         mimeType ? { mimeType } : undefined
@@ -78,6 +103,22 @@ export default function useWebAudio(
     }
     return recorderRef.current;
   }, [canvasRef, getGraph]);
+
+  // Called after each canvas draw; captures at most RECORD_FPS frames per second.
+  const requestFrame = useCallback(() => {
+    const captureFrame = captureFrameRef.current;
+    if (!captureFrame || recorderRef.current?.state !== 'recording') {
+      return;
+    }
+
+    const now = performance.now();
+    if (now - lastFrameAtRef.current < FRAME_INTERVAL_MS) {
+      return;
+    }
+
+    lastFrameAtRef.current = now;
+    captureFrame();
+  }, []);
 
   // Tear everything down on unmount.
   useEffect(() => {
@@ -260,6 +301,7 @@ export default function useWebAudio(
     getElapsed,
     getAnalyser,
     getRecorder,
+    requestFrame,
     clipBuffer,
     duration,
     isDecoding,

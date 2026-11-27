@@ -32,8 +32,14 @@ export const Component = () => {
   const [fgColor, setFgColor] = useState('#ff00ff99');
   const [zoom, setZoom] = useState(0);
   const [minZoom, setMinZoom] = useState<number>();
-  const { playClip, stopClip, getAnalyser, getRecorder, isPlaying } =
-    useWebAudio(audioFile, audioSelection, canvasRef);
+  const {
+    playClip,
+    stopClip,
+    getAnalyser,
+    getRecorder,
+    requestFrame,
+    isPlaying
+  } = useWebAudio(audioFile, audioSelection, canvasRef);
   const loadFfmpeg = async () => {
     const baseURL =
       'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd';
@@ -236,6 +242,7 @@ export const Component = () => {
         isPlaying={isPlaying}
         maxZoom={MAX_ZOOM}
         minZoom={minZoom}
+        onFrame={requestFrame}
         onZoomChange={handleZoomChange}
         ref={canvasRef}
         zoom={zoom}
