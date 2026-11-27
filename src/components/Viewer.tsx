@@ -1,5 +1,5 @@
 import { ChangeEvent, RefObject, useEffect } from 'react';
-import { Card, Col, Form, Row } from 'react-bootstrap';
+import { Card, Col, Form, ProgressBar, Row } from 'react-bootstrap';
 
 import { formatSeconds, VIDEO_SIZES } from '../utils';
 import { AudioSelection, ExportSize } from '../types';
@@ -13,9 +13,11 @@ const MAX_FREQ = 16000; // Hz
 interface IProps {
   audioSelection?: AudioSelection;
   bgColor: string;
+  encodeProgress?: number;
   exportSize: ExportSize;
   fgColor: string;
   getAnalyzer: () => AnalyserNode;
+  isEncoding: boolean;
   isPlaying: boolean;
   maxZoom: number;
   minZoom?: number;
@@ -27,9 +29,11 @@ interface IProps {
 export default function Viewer({
   audioSelection,
   bgColor,
+  encodeProgress,
   exportSize,
   fgColor,
   getAnalyzer,
+  isEncoding,
   isPlaying,
   maxZoom,
   minZoom,
@@ -138,6 +142,9 @@ export default function Viewer({
             ref={ref}
             width={VIDEO_SIZES[exportSize][0]}
           />
+          {isEncoding && (
+            <ProgressBar animated max={1} min={0} now={encodeProgress} />
+          )}
         </Row>
       </div>
     </Col>

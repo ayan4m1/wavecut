@@ -21,7 +21,9 @@ export const Component = () => {
   const wavesurfer = useRef<WaveSurfer>(null);
   const ffmpegRef = useRef<FFmpeg>(new FFmpeg());
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [exporting, setExporting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isEncoding, setIsEncoding] = useState(false);
+  const [encodeProgress, setEncodeProgress] = useState<number>();
   const [audioFile, setAudioFile] = useState<Blob>();
   const [audioRegion, setAudioRegion] = useState<Region>();
   const [audioSelection, setAudioSelection] = useState<AudioSelection>();
@@ -36,11 +38,7 @@ export const Component = () => {
     const baseURL =
       'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd';
     const ffmpeg = ffmpegRef.current;
-    ffmpeg.on('log', ({ message }) => {
-      console.log(message);
-    });
-    // toBlobURL is used to bypass CORS issue, urls with the same
-    // domain can be used directly.
+
     await ffmpeg.load({
       coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
       wasmURL: await toBlobURL(
@@ -54,11 +52,11 @@ export const Component = () => {
     setAudioFile(audioFile);
   }, []);
   const handleExportClick = useCallback(async () => {
-    if (exporting) {
+    if (isExporting) {
       return;
     }
 
-    setExporting(true);
+    setIsExporting(true);
 
     wavesurfer.current?.stop();
 
@@ -74,12 +72,27 @@ export const Component = () => {
       let blob: Blob;
 
       if (mimeType?.includes('webm')) {
+        ffmpegRef.current.on('progress', ({ time }) => {
+          const currentSeconds = time / 1_000_000;
+          const progress = Math.min(
+            Math.max(
+              currentSeconds /
+                ((audioSelection?.end ?? 0) - (audioSelection?.start ?? 0)),
+              0
+            ),
+            1
+          );
+
+          console.dir(progress);
+          setEncodeProgress(progress);
+        });
+
         await ffmpegRef.current.writeFile(
           'input.webm',
           await fetchFile(e.data)
         );
 
-        // todo: show animated progress bar
+        setIsEncoding(true);
 
         // prettier-ignore
         const args = [
@@ -111,7 +124,7 @@ export const Component = () => {
 
         await ffmpegRef.current.exec(args);
 
-        // todo: hide animated progress bar
+        setIsEncoding(false);
 
         const data = (await ffmpegRef.current.readFile(
           'output.mp4'
@@ -130,13 +143,20 @@ export const Component = () => {
       aTag.click();
       document.body.removeChild(aTag);
 
-      setTimeout(() => URL.revokeObjectURL(url), 100);
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+
+        if (mimeType?.includes('webm')) {
+          ffmpegRef.current.deleteFile('input.webm');
+          ffmpegRef.current.deleteFile('output.mp4');
+        }
+      }, 100);
     });
 
     recorder.start();
     await playClip();
     recorder.stop();
-  }, [playClip, getRecorder, exporting]);
+  }, [playClip, getRecorder, isExporting, audioSelection]);
   const handlePlayClick = useCallback(() => {
     stopClip();
     audioRegion?.play(true);
@@ -208,9 +228,11 @@ export const Component = () => {
       <Viewer
         audioSelection={audioSelection}
         bgColor={bgColor}
+        encodeProgress={encodeProgress}
         exportSize={exportSize}
         fgColor={fgColor}
         getAnalyzer={getAnalyser}
+        isEncoding={isEncoding}
         isPlaying={isPlaying}
         maxZoom={MAX_ZOOM}
         minZoom={minZoom}
