@@ -7,8 +7,11 @@ import RegionsPlugin, { Region } from 'wavesurfer.js/dist/plugins/regions.js';
 import Viewer from '../components/Viewer';
 import SidePanel from '../components/SidePanel';
 import useKeyEvents from '../hooks/useKeyEvents';
-import { AudioSelection, ExportSize } from '../types';
 import useWebAudio from '../hooks/useWebAudio';
+import { AudioSelection, ExportSize } from '../types';
+import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { toBlobURL } from '@ffmpeg/util';
+import { pickMimeType } from '../utils';
 
 const MAX_ZOOM = 500; // px per second
 const MIN_LENGTH = 5; // seconds
@@ -16,26 +19,55 @@ const MAX_LENGTH = 90; // seconds
 
 export const Component = () => {
   const wavesurfer = useRef<WaveSurfer>(null);
+  const ffmpegRef = useRef<FFmpeg>(new FFmpeg());
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [audioFile, setAudioFile] = useState<Blob>();
   const [audioRegion, setAudioRegion] = useState<Region>();
   const [audioSelection, setAudioSelection] = useState<AudioSelection>();
   const [exportSize, setExportSize] = useState<ExportSize>(ExportSize.Square);
+  const [bgColor, setBgColor] = useState('#00000000');
+  const [fgColor, setFgColor] = useState('#ff00ff99');
   const [zoom, setZoom] = useState(0);
   const [minZoom, setMinZoom] = useState<number>();
-  const { playClip, stopClip, getAnalyser, isPlaying } = useWebAudio(
-    audioFile,
-    audioSelection,
-    canvasRef
-  );
+  const { playClip, stopClip, getAnalyser, getRecorder, isPlaying } =
+    useWebAudio(audioFile, audioSelection, canvasRef);
+  const loadFfmpeg = async () => {
+    const baseURL =
+      'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd';
+    const ffmpeg = ffmpegRef.current;
+    ffmpeg.on('log', ({ message }) => {
+      console.log(message);
+    });
+    // toBlobURL is used to bypass CORS issue, urls with the same
+    // domain can be used directly.
+    await ffmpeg.load({
+      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+      wasmURL: await toBlobURL(
+        `${baseURL}/ffmpeg-core.wasm`,
+        'application/wasm'
+      )
+    });
+  };
   const handleAudioUpload = useCallback(async (audioFile: Blob) => {
     wavesurfer.current?.loadBlob(audioFile);
     setAudioFile(audioFile);
   }, []);
-  const handleExportClick = useCallback(() => {
+  const handleExportClick = useCallback(async () => {
     wavesurfer.current?.stop();
+
+    // todo: set global disabled state flag
+
+    const recorder = getRecorder();
+    const mimeType = pickMimeType();
+
+    // load ffmpeg.wasm core only if needed
+    if (mimeType?.includes('webm')) {
+      await loadFfmpeg();
+    }
+
     playClip();
-  }, [playClip]);
+    recorder.start();
+  }, [playClip, getRecorder]);
   const handlePlayClick = useCallback(() => {
     stopClip();
     audioRegion?.play(true);
@@ -95,6 +127,8 @@ export const Component = () => {
       minLength: MIN_LENGTH,
       maxLength: MAX_LENGTH
     });
+
+    return () => wavesurfer.current?.destroy();
   }, [wavesurfer]);
 
   useKeyEvents(wavesurfer, audioRegion, setAudioSelection);
@@ -104,7 +138,9 @@ export const Component = () => {
       <title>Wavecut</title>
       <Viewer
         audioSelection={audioSelection}
+        bgColor={bgColor}
         exportSize={exportSize}
+        fgColor={fgColor}
         getAnalyzer={getAnalyser}
         isPlaying={isPlaying}
         maxZoom={MAX_ZOOM}
@@ -114,9 +150,13 @@ export const Component = () => {
         zoom={zoom}
       />
       <SidePanel
+        bgColor={bgColor}
+        fgColor={fgColor}
         hasAudio={Boolean(audioRegion)}
         onAudioUpload={handleAudioUpload}
+        onBgColorChange={setBgColor}
         onExportClick={handleExportClick}
+        onFgColorChange={setFgColor}
         onPlayClick={handlePlayClick}
         onResetClick={handleResetClick}
         onSizeChange={setExportSize}

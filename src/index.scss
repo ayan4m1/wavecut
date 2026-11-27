@@ -4,6 +4,7 @@ html,
 body {
   height: 100vh;
   background-color: #262323;
+  color: #fefefe;
 }
 
 .wc-editor {
@@ -33,4 +34,11 @@ body {
   border-radius: 12px;
   height: 100vh;
   border: 4px solid #2f4b83;
+}
+
+.wc-color-swatch {
+  width: 64px;
+  height: 64px;
+  border-radius: 6px;
+  cursor: pointer;
 }

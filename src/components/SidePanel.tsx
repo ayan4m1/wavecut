@@ -1,24 +1,38 @@
-import { ChangeEvent, Fragment, useCallback } from 'react';
-import { Button, ButtonGroup, Col, Form } from 'react-bootstrap';
+import { ColorState, SketchPicker } from 'react-color';
+import { ChangeEvent, Fragment, useCallback, useRef, useState } from 'react';
+import { Button, ButtonGroup, Col, Form, Overlay } from 'react-bootstrap';
+
 import { ExportSize } from '../types';
 
 interface IProps {
+  bgColor: string;
+  fgColor: string;
   hasAudio: boolean;
   onAudioUpload: (audioFile: Blob) => void;
+  onBgColorChange: (color: string) => void;
   onExportClick: () => void;
+  onFgColorChange: (color: string) => void;
   onPlayClick: () => void;
   onResetClick: () => void;
   onSizeChange: (size: ExportSize) => void;
 }
 
 export default function SidePanel({
+  bgColor,
+  fgColor,
   hasAudio,
   onAudioUpload,
+  onBgColorChange,
   onExportClick,
+  onFgColorChange,
   onPlayClick,
   onResetClick,
   onSizeChange
 }: IProps) {
+  const bgRef = useRef<HTMLDivElement>(null);
+  const fgRef = useRef<HTMLDivElement>(null);
+  const [showBgColor, setShowBgColor] = useState(false);
+  const [showFgColor, setShowFgColor] = useState(false);
   const handleFileChange = useCallback(
     async (e: ChangeEvent<HTMLInputElement>) => {
       const { files } = e.target;
@@ -42,6 +56,22 @@ export default function SidePanel({
       onAudioUpload(new Blob([await file.arrayBuffer()], { type: file.type }));
     },
     [onAudioUpload]
+  );
+  const handleBgColorChange = useCallback(
+    (color: ColorState) => onBgColorChange(color.hex),
+    [onBgColorChange]
+  );
+  const handleFgColorChange = useCallback(
+    (color: ColorState) => onFgColorChange(color.hex),
+    [onFgColorChange]
+  );
+  const toggleShowBgColor = useCallback(
+    () => setShowBgColor((prev) => !prev),
+    []
+  );
+  const toggleShowFgColor = useCallback(
+    () => setShowFgColor((prev) => !prev),
+    []
   );
 
   return (
@@ -70,6 +100,64 @@ export default function SidePanel({
                   </option>
                 ))}
               </Form.Select>
+            </Form.Group>
+            <Form.Group>
+              <Form.Label>Background Color</Form.Label>
+              <div
+                className="wc-color-swatch"
+                onClick={toggleShowBgColor}
+                ref={bgRef}
+                style={{ backgroundColor: bgColor }}
+              />
+              <Overlay
+                placement="bottom"
+                show={showBgColor}
+                // eslint-disable-next-line react-hooks/refs
+                target={bgRef.current}
+              >
+                {({ ref, style, 'aria-labelledby': labelledBy }) => (
+                  <div
+                    aria-labelledby={labelledBy}
+                    ref={ref}
+                    style={{ ...style, zIndex: 1000 }}
+                  >
+                    <SketchPicker
+                      color={bgColor}
+                      onChange={handleBgColorChange}
+                      presetColors={[]}
+                    />
+                  </div>
+                )}
+              </Overlay>
+            </Form.Group>
+            <Form.Group>
+              <Form.Label>Foreground Color</Form.Label>
+              <div
+                className="wc-color-swatch"
+                onClick={toggleShowFgColor}
+                ref={fgRef}
+                style={{ backgroundColor: fgColor }}
+              />
+              <Overlay
+                placement="bottom"
+                show={showFgColor}
+                // eslint-disable-next-line react-hooks/refs
+                target={fgRef.current}
+              >
+                {({ ref, style, 'aria-labelledby': labelledBy }) => (
+                  <div
+                    aria-labelledby={labelledBy}
+                    ref={ref}
+                    style={{ ...style, zIndex: 1000 }}
+                  >
+                    <SketchPicker
+                      color={fgColor}
+                      onChange={handleFgColorChange}
+                      presetColors={[]}
+                    />
+                  </div>
+                )}
+              </Overlay>
             </Form.Group>
             <Form.Group className="mt-2">
               <ButtonGroup>

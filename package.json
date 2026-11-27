@@ -11,15 +11,19 @@
     "start": "cross-env NODE_ENV=development webpack serve"
   },
   "dependencies": {
+    "@ffmpeg/ffmpeg": "^0.12.15",
+    "@ffmpeg/util": "^0.12.2",
     "@fortawesome/fontawesome-svg-core": "^7.3.1",
     "@fortawesome/free-solid-svg-icons": "^7.3.1",
     "@fortawesome/react-fontawesome": "^3.5.0",
     "@popperjs/core": "^2.11.8",
+    "@types/node": "24",
     "bootstrap": "^5.3.9",
     "classnames": "^2.5.1",
     "normalize-scss": "^8.0.0",
     "react": "^19.3.1",
     "react-bootstrap": "^2.10.10",
+    "react-color": "^2.19.3",
     "react-dom": "^19.3.1",
     "react-router-dom": "^6",
     "reselect": "^5.3.0",
@@ -28,6 +32,7 @@
   "devDependencies": {
     "@eslint/js": "^9",
     "@types/react": "^19.3.1",
+    "@types/react-color": "^2",
     "@types/react-dom": "^19.3.0",
     "autoprefixer": "^10.7.0",
     "clean-webpack-plugin": "^4.0.0",

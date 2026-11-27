@@ -1,24 +1,20 @@
 import { ChangeEvent, RefObject, useEffect } from 'react';
 import { Card, Col, Form, Row } from 'react-bootstrap';
 
-import { formatSeconds } from '../utils';
+import { formatSeconds, VIDEO_SIZES } from '../utils';
 import { AudioSelection, ExportSize } from '../types';
 
-const BAR_COLOR = '#ff00ff';
 const BAR_GAP = 1; // px
 const BAR_COUNT = 64;
 // Log-spaced band edges; most lossy audio is low-passed around 16 kHz, so going to Nyquist leaves empty bars.
 const MIN_FREQ = 40; // Hz
 const MAX_FREQ = 16000; // Hz
-const VIDEO_SIZES = {
-  [ExportSize.Square]: [1080, 1080],
-  [ExportSize.Horizontal]: [1920, 1080],
-  [ExportSize.Vertical]: [1080, 1920]
-} as const;
 
 interface IProps {
   audioSelection?: AudioSelection;
+  bgColor: string;
   exportSize: ExportSize;
+  fgColor: string;
   getAnalyzer: () => AnalyserNode;
   isPlaying: boolean;
   maxZoom: number;
@@ -30,7 +26,9 @@ interface IProps {
 
 export default function Viewer({
   audioSelection,
+  bgColor,
   exportSize,
+  fgColor,
   getAnalyzer,
   isPlaying,
   maxZoom,
@@ -77,7 +75,9 @@ export default function Viewer({
 
       analyser.getByteFrequencyData(data);
       clear();
-      ctx.fillStyle = BAR_COLOR;
+      ctx.fillStyle = bgColor;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = fgColor;
 
       ctx.beginPath();
       const slot = width / BAR_COUNT;
@@ -101,7 +101,7 @@ export default function Viewer({
     return () => {
       cancelAnimationFrame(frame);
     };
-  }, [isPlaying, getAnalyzer, ref]);
+  }, [isPlaying, getAnalyzer, ref, bgColor, fgColor]);
 
   return (
     <Col className="wc-editor d-flex align-items-center" md={10} xs={8}>

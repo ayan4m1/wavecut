@@ -7,6 +7,7 @@ import {
   useState
 } from 'react';
 import { AudioSelection, ClipPlayerOptions } from '../types';
+import { pickMimeType } from '../utils';
 
 interface AudioGraph {
   ctx: AudioContext;
@@ -51,23 +52,28 @@ export default function useWebAudio(
   const getAnalyser = useCallback(() => getGraph().analyser, [getGraph]);
 
   const getRecorder = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) {
-      throw new Error('Visualizer canvas not mounted');
+    if (!recorderRef.current || recorderRef.current.state === 'inactive') {
+      const canvas = canvasRef.current;
+      if (!canvas) {
+        throw new Error('Visualizer canvas not mounted');
+      }
+
+      // Must share the graph's AudioContext; nodes can't connect across contexts.
+      const { ctx } = getGraph();
+      const stream = new MediaStream();
+      const mimeType = pickMimeType();
+      const audioDest = ctx.createMediaStreamDestination();
+
+      gainRef.current?.connect(audioDest);
+      const videoStream = canvas.captureStream(30);
+
+      stream.addTrack(audioDest.stream.getAudioTracks()[0]);
+      stream.addTrack(videoStream.getVideoTracks()[0]);
+      recorderRef.current = new MediaRecorder(
+        stream,
+        mimeType ? { mimeType } : undefined
+      );
     }
-
-    // Must share the graph's AudioContext; nodes can't connect across contexts.
-    const { ctx } = getGraph();
-    const stream = new MediaStream();
-    const audioDest = ctx.createMediaStreamDestination();
-
-    gainRef.current?.connect(audioDest);
-    const videoStream = canvas.captureStream(30);
-
-    stream.addTrack(audioDest.stream.getAudioTracks()[0]);
-    stream.addTrack(videoStream.getVideoTracks()[0]);
-    recorderRef.current = new MediaRecorder(stream);
-
     return recorderRef.current;
   }, [canvasRef, getGraph]);
 
