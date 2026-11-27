@@ -7,8 +7,7 @@ body {
   color: #fefefe;
 }
 
-.wc-editor {
-  color: #fefefe;
+@mixin gradient-box {
   background: linear-gradient(
     135deg,
     #0a1033 0%,
@@ -17,18 +16,27 @@ body {
     /* blue starting to shift */ #4a1f7a 90%,
     /* purple */ #5b2a86 100% /* slightly lighter purple at the corner */
   );
+}
+
+.wc-editor {
+  @include gradient-box;
+
+  color: #fefefe;
   border-radius: 12px;
   height: 100vh;
   border: 4px solid #2f4b83;
 
   &-visualizer {
     display: block;
+    min-height: 120px;
     max-height: 360px;
     height: auto;
   }
 }
 
 .wc-side-panel {
+  @include gradient-box;
+
   color: #fefefe;
   background-color: #142038;
   border-radius: 12px;
