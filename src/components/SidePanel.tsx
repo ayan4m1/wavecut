@@ -3,6 +3,12 @@ import { ChangeEvent, Fragment, useCallback, useRef, useState } from 'react';
 import { Button, ButtonGroup, Col, Form, Overlay } from 'react-bootstrap';
 
 import { ExportSize } from '../types';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+  faDeleteLeft,
+  faPlay,
+  faUpload
+} from '@fortawesome/free-solid-svg-icons';
 
 interface IProps {
   bgColor: string;
@@ -161,12 +167,14 @@ export default function SidePanel({
             </Form.Group>
             <Form.Group className="mt-2">
               <ButtonGroup>
-                <Button onClick={onPlayClick}>Play</Button>
+                <Button onClick={onPlayClick}>
+                  <FontAwesomeIcon icon={faPlay} /> Play
+                </Button>
                 <Button onClick={onResetClick} variant="danger">
-                  Clear
+                  <FontAwesomeIcon icon={faDeleteLeft} /> Clear
                 </Button>
                 <Button onClick={onExportClick} variant="success">
-                  Export
+                  <FontAwesomeIcon icon={faUpload} /> Export
                 </Button>
               </ButtonGroup>
             </Form.Group>
